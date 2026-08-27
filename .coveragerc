@@ -1,0 +1,19 @@
+[run]
+source =
+    accounts
+    assignments
+    audit
+    config
+    organizations
+    people
+    wordpress
+omit =
+    */migrations/*
+    manage.py
+    config/wsgi.py
+    config/asgi.py
+    */tests/*
+    tests/*
+    frontend/*
+    .venv/*
+    */admin.py

@@ -1,0 +1,39 @@
+steps:
+  - name: gcr.io/cloud-builders/docker
+    args:
+      - build
+      - "-t"
+      - "${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPO}/county-directory:${BUILD_ID}"
+      - .
+
+  - name: gcr.io/cloud-builders/docker
+    args:
+      - push
+      - "${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPO}/county-directory:${BUILD_ID}"
+
+  - name: gcr.io/google.com/cloudsdktool/cloud-sdk
+    entrypoint: gcloud
+    args:
+      - run
+      - deploy
+      - county-directory
+      - "--image=${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPO}/county-directory:${BUILD_ID}"
+      - "--region=${_REGION}"
+      - "--platform=managed"
+      - "--allow-unauthenticated"
+      - "--add-cloudsql-instances=core-db-475718:us-central1:db-dice"
+      - "--vpc-connector=projects/core-db-475718/locations/us-central1/connectors/serverless-sql-connector"
+      - "--vpc-egress=private-ranges-only"
+      - "--set-secrets=DATABASE_URL=DIRECTORY_DATABASE_URL:latest,DJANGO_SECRET_KEY=DIRECTORY_DJANGO_SECRET_KEY:latest,COUNTY_SEND_EMAIL_API_KEY=WP_EMAIL_API_KEY:latest,WP_SYNC_TRIGGER_URL_BY_TENANT=WP_SYNC_TRIGGER_URL_BY_TENANT:latest,WP_SYNC_TRIGGER_SECRET=WP_SYNC_TRIGGER_SECRET:latest,SYNC_API_SECRET=DIRECTORY_SYNC_API_SECRET:latest"
+      - "--set-env-vars=TENANT_ID=SJC,DIRECTORY_EDITABLE_TENANT_IDS=SJC;VBC,DJANGO_DEBUG=false,COOKIE_SECURE=true,DJANGO_ALLOWED_HOSTS=.run.app,localhost"
+      - "--memory=512Mi"
+      - "--cpu=1000m"
+      - "--max-instances=20"
+      - "--cpu-boost"
+
+substitutions:
+  _REGION: us-central1
+  _REPO: cloud-run-source-deploy
+
+images:
+  - "${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPO}/county-directory:${BUILD_ID}"

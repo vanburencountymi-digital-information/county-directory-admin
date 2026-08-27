@@ -1,0 +1,67 @@
+name: tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  pytest:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: directory
+          POSTGRES_PASSWORD: directory
+          POSTGRES_DB: directory_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U directory -d directory_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      CI: "true"
+      DATABASE_URL: postgresql://directory:directory@localhost:5432/directory_test
+      DJANGO_SECRET_KEY: test-django-secret-at-least-32-chars!!
+      DJANGO_DEBUG: "false"
+      COUNTY_SEND_EMAIL_API_KEY: test-email-key
+      COOKIE_SECURE: "false"
+      TENANT_ID: VBC
+      DIRECTORY_EDITABLE_TENANT_IDS: VBC;SJC
+      SYNC_API_SECRET: test-sync-api-secret
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install
+        run: pip install -r requirements-dev.txt
+      - name: Test
+        run: pytest -q --cov-report=xml
+      - name: Coverage summary
+        if: always()
+        run: |
+          python -m coverage report
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: coverage-xml
+          path: coverage.xml
+
+  vitest:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci
+      - run: npm test

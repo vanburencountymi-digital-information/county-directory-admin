@@ -1,0 +1,191 @@
+.print-directory-page {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 1rem 1.25rem;
+}
+
+.print-directory-toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.print-directory-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.print-preview-frame {
+  border: 1px dashed var(--border);
+  border-radius: 10px;
+  min-height: 400px;
+  padding: 1rem;
+  background: #f8f8f8;
+  overflow: auto;
+}
+
+.print-preview-placeholder {
+  margin: 1rem 0;
+}
+
+.print-preview-output .pagedjs_page {
+  margin: 0 auto 1rem;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.12);
+}
+
+.print-source:not(.pagedjs_pages .print-source) {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 8.5in;
+  height: 0;
+  overflow: hidden;
+  visibility: hidden;
+}
+
+.print-document {
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 11pt;
+  color: #111;
+}
+
+.print-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  font-weight: 700;
+  margin-bottom: 0.2in;
+}
+
+.print-columns {
+  column-count: 2;
+  column-gap: 0.35in;
+}
+
+.print-group {
+  break-inside: auto;
+}
+
+.print-group-title {
+  margin: 0.12in 0 0.06in;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 13pt;
+  font-weight: 700;
+  font-variant: small-caps;
+  letter-spacing: 0.03em;
+  border-bottom: 1.5pt solid #111;
+  padding-bottom: 0.03in;
+  column-span: all;
+  break-after: avoid;
+  page-break-after: avoid;
+}
+
+.print-department {
+  break-inside: auto;
+  margin-bottom: 0.2in;
+}
+
+.print-department-title {
+  margin: 0 0 0.04in;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 11pt;
+  font-weight: 700;
+  text-decoration: underline;
+  break-after: avoid;
+  page-break-after: avoid;
+}
+
+.print-dept-contact {
+  font-size: 9.5pt;
+  font-weight: 700;
+  line-height: 1.3;
+  margin-bottom: 0.07in;
+  break-inside: avoid;
+  break-after: avoid;
+  page-break-after: avoid;
+}
+
+.print-dept-contact-line {
+  display: block;
+}
+
+.print-entry-list {
+  display: block;
+}
+
+.print-entry {
+  break-inside: avoid;
+  page-break-inside: avoid;
+  margin-bottom: 0.1in;
+}
+
+.print-entry-name {
+  font-weight: 700;
+}
+
+.print-entry-line {
+  line-height: 1.3;
+}
+
+@page {
+  size: Letter;
+  margin: 0.6in;
+  @top-center {
+    content: "Van Buren County - Staff Directory";
+    font-family: Georgia, "Times New Roman", serif;
+    font-size: 10pt;
+  }
+  @top-right {
+    content: "2026";
+    font-family: Georgia, "Times New Roman", serif;
+    font-size: 10pt;
+  }
+  @bottom-center {
+    content: counter(page);
+    font-family: Georgia, "Times New Roman", serif;
+    font-size: 10pt;
+  }
+}
+
+/* Reset app-shell card styles on wrapper elements that Paged.js copies into pages */
+.pagedjs_pages .print-directory-page {
+  background: transparent;
+  border: none;
+  border-radius: 0;
+  padding: 0;
+}
+
+@media print {
+  .top-bar,
+  .print-directory-toolbar,
+  .print-preview-placeholder,
+  .main-area > *:not(.print-directory-page) {
+    display: none !important;
+  }
+  /* Only hide the original source div, not the split copies inside Paged.js pages */
+  .print-source:not(.pagedjs_pages .print-source) {
+    display: none !important;
+  }
+
+  .main-area {
+    padding: 0 !important;
+  }
+
+  .print-directory-page {
+    border: none;
+    border-radius: 0;
+    padding: 0;
+    background: transparent;
+  }
+
+  .print-preview-frame {
+    border: none;
+    padding: 0;
+    min-height: auto;
+    overflow: visible;
+    background: transparent;
+  }
+}
