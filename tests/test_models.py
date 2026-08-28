@@ -4,7 +4,7 @@ from django.db import IntegrityError
 from accounts.models import User
 from accounts.services import upgrade_person_to_user
 from organizations.models import Organization, hierarchy_family
-from organizations.services import validate_org_parent
+from organizations.services import descendant_ids, validate_org_parent
 from ninja.errors import HttpError
 from people.models import Person, derive_full_name
 from tests.conftest import make_org, make_person
@@ -68,8 +68,24 @@ def test_hierarchy_family():
 
 
 @pytest.mark.django_db
+def test_descendant_ids_walks_down_the_tree():
+    a = make_org(name="A", slug="a")
+    b = make_org(name="B", slug="b", parent=a)
+    c = make_org(name="C", slug="c", parent=b)
+    make_org(name="Other", slug="other")
+    assert descendant_ids("VBC", a.id) == {a.id, b.id, c.id}
+    assert descendant_ids("VBC", a.id, include_self=False) == {b.id, c.id}
+    assert descendant_ids("VBC", b.id) == {b.id, c.id}
+    assert descendant_ids("VBC", c.id) == {c.id}
+
+
+@pytest.mark.django_db
 def test_parent_cycle_rejected():
     a = make_org(name="A", slug="a")
     b = make_org(name="B", slug="b", parent=a)
+    c = make_org(name="C", slug="c", parent=b)
     with pytest.raises(HttpError):
         validate_org_parent(tenant_id="VBC", org_id=a.id, parent_id=b.id, child_org_type="department")
+    with pytest.raises(HttpError):
+        validate_org_parent(tenant_id="VBC", org_id=a.id, parent_id=c.id, child_org_type="department")
+    validate_org_parent(tenant_id="VBC", org_id=c.id, parent_id=a.id, child_org_type="department")
