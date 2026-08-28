@@ -72,8 +72,6 @@ class Organization(models.Model):
     archived_at = models.DateTimeField(null=True, blank=True)
     created_at = models.DateTimeField(default=timezone.now)
     updated_at = models.DateTimeField(auto_now=True)
-    department_id = models.TextField(null=True, blank=True)
-    parent_department_id = models.TextField(null=True, blank=True)
     address_mailing = models.TextField(null=True, blank=True)
     address_physical = models.TextField(null=True, blank=True)
     additional_information = models.TextField(null=True, blank=True)

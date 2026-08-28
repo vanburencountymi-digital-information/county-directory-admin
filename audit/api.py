@@ -10,7 +10,7 @@ from audit.services import insert_audit, timestamps_match
 from organizations.models import Organization
 from people.api import PEOPLE_PATCHABLE
 from people.models import Person
-from wordpress.serializers import organization_to_wire, person_to_wire
+from wordpress.serializers import organization_to_wire, person_to_admin
 
 router = Router(tags=["audit"])
 
@@ -96,7 +96,7 @@ def revert_mutation(request, audit_id: int):
                 raise HttpError(409, "Person no longer exists or is archived") from None
             if not timestamps_match(current.updated_at, after.get("updated_at")):
                 raise HttpError(409, "Record was changed after this edit; revert blocked for safety")
-            state_before = person_to_wire(current)
+            state_before = person_to_admin(current)
             changed = False
             for col in PEOPLE_PATCHABLE:
                 if col in before:
@@ -105,7 +105,7 @@ def revert_mutation(request, audit_id: int):
             if not changed:
                 raise HttpError(400, "Nothing to revert")
             current.save()
-            state_after = person_to_wire(current)
+            state_after = person_to_admin(current)
         else:
             try:
                 current = Organization.objects.select_for_update().get(

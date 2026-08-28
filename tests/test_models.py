@@ -6,22 +6,34 @@ from accounts.services import upgrade_person_to_user
 from organizations.models import Organization, hierarchy_family
 from organizations.services import descendant_ids, validate_org_parent
 from ninja.errors import HttpError
-from people.models import Person, derive_full_name
+from people.models import Person, compose_name, display_name_from_source, resolve_full_name
 from tests.conftest import make_org, make_person
 from assignments.models import Assignment
 
 
-def test_full_name_derivation():
-    assert derive_full_name("Ada", "Lovelace") == "Ada Lovelace"
-    assert derive_full_name("Ada", "Lovelace", "Ada L.") == "Ada L."
-    assert derive_full_name("", "", None) == ""
+def test_full_name_uses_display_name_override():
+    assert compose_name("Ada", "Augusta", "Lovelace", None) == "Ada Augusta Lovelace"
+    assert resolve_full_name(name_first="Ada", name_last="Lovelace") == "Ada Lovelace"
+    assert resolve_full_name(display_name="Ada L.", name_first="Ada", name_last="Lovelace") == "Ada L."
+    assert resolve_full_name(display_name="  ", name_first="Ada", name_last="Lovelace") == "Ada Lovelace"
+    assert display_name_from_source(
+        {"name_first": "Ada", "name_last": "Lovelace", "full_name": "Ada Lovelace"}
+    ) is None
+    assert display_name_from_source(
+        {"name_first": "Ada", "name_last": "Lovelace", "full_name": "Ada L."}
+    ) == "Ada L."
 
 
 @pytest.mark.django_db
-def test_person_save_sets_full_name():
-    p = make_person(name_first="Grace", name_last="Hopper", full_name="")
+def test_person_full_name_property_and_blank_override():
+    p = make_person(name_first="Grace", name_last="Hopper", display_name="")
     p.refresh_from_db()
+    assert p.display_name is None
     assert p.full_name == "Grace Hopper"
+    p.display_name = "Amazing Grace"
+    p.save()
+    p.refresh_from_db()
+    assert p.full_name == "Amazing Grace"
 
 
 @pytest.mark.django_db

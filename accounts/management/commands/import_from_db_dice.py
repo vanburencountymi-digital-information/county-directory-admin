@@ -5,7 +5,7 @@ Usage:
 
 Preserves people/org/assignment UUIDs and tenant_id. Maps core.caps/people_caps
 into Groups, Users (via upgrade_person_to_user), and TenantMembership.
-Does not import OTP tokens or FastAPI sessions.
+Does not import OTP tokens or FastAPI sessions. Column mapping: docs/ETL.md.
 """
 
 from collections import defaultdict
@@ -21,7 +21,7 @@ from accounts.models import TenantMembership, User
 from accounts.services import grant_directory_group, upgrade_person_to_user
 from assignments.models import Assignment
 from organizations.models import Organization
-from people.models import Person
+from people.models import Person, display_name_from_source
 
 
 def _dt(value):
@@ -103,8 +103,6 @@ class Command(BaseCommand):
                         "hours_text": row.get("hours_text"),
                         "archived_at": _dt(row.get("archived_at")),
                         "created_at": _dt(row.get("created_at")),
-                        "department_id": row.get("department_id"),
-                        "parent_department_id": row.get("parent_department_id"),
                         "address_mailing": row.get("address_mailing"),
                         "address_physical": row.get("address_physical"),
                         "additional_information": row.get("additional_information"),
@@ -127,13 +125,10 @@ class Command(BaseCommand):
                         "name_middle": row.get("name_middle"),
                         "name_last": row.get("name_last"),
                         "name_suffix": row.get("name_suffix"),
-                        "full_name": row.get("full_name"),
+                        "display_name": display_name_from_source(row),
                         "email_public": row.get("email_public"),
                         "phone_public": row.get("phone_public"),
                         "phone_public_ext": row.get("phone_public_ext"),
-                        "job_title": row.get("job_title"),
-                        "person_key": row.get("person_key"),
-                        "role": row.get("role"),
                         "show_in_directory": bool(row.get("show_in_directory", True)),
                         "archived_at": _dt(row.get("archived_at")),
                         "created_at": _dt(row.get("created_at")),

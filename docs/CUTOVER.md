@@ -5,7 +5,7 @@ db-dice remains the production source of truth until this window. No dual-write.
 ## Before the window
 
 - [ ] Staging Cloud Run + `db-dice` database `directory` healthy ([STAGING.md](STAGING.md))
-- [ ] `pytest` green; WordPress golden tests passing (booleans, `full_name`, `tenant_id`)
+- [ ] `pytest` green; WordPress golden tests passing (booleans, resolved `full_name`, `tenant_id`)
 - [ ] Confirm each production WP site’s county-core admin page: Sync API URL mode, not `COUNTY_PG_*`
 - [ ] Announce: **all Directory Admin sessions end**. FastAPI HMAC cookies cannot become Django sessions. Every clerk requests a new magic link after cutover.
 - [ ] Freeze plan for Cloud Run `directory-admin` (scale to 0 or read-only)
@@ -19,7 +19,7 @@ db-dice remains the production source of truth until this window. No dual-write.
    python manage.py import_from_db_dice
    ```
 
-   The command copies people, organizations, and assignments **preserving UUIDs and `tenant_id`**, then maps `core.caps` / `core.people_caps` into Groups (`directory_editor`, `permissions_admin`), Users via `upgrade_person_to_user`, and `TenantMembership`. It asserts membership equivalence. It does **not** import `ops.otp_tokens`.
+   The command copies people, organizations, and assignments **preserving UUIDs and `tenant_id`**, then maps `core.caps` / `core.people_caps` into Groups (`directory_editor`, `permissions_admin`), Users via `upgrade_person_to_user`, and `TenantMembership`. It asserts membership equivalence. It does **not** import `ops.otp_tokens`. Column mapping (what is imported, transformed, or dropped) is in [ETL.md](ETL.md).
 3. Point Django `DATABASE_URL` at `db-dice` database `directory` (not the `postgres` database).
 4. Point each WordPress site’s **Sync API URL** at Django (`https://<county-directory-host>/`) and the inbound `SYNC_API_SECRET`. Confirm HTTP mode, not libpq.
 5. Run incremental/full county-core sync, then Directory Admin “Check website drift”.

@@ -1,6 +1,5 @@
 from uuid import UUID, uuid4
 
-from django.db.models import Q
 from ninja import Router, Schema
 from ninja.errors import HttpError
 
@@ -9,7 +8,7 @@ from assignments.models import Assignment
 from audit.services import insert_audit, jsonable
 from organizations.models import ALLOWED_ORG_TYPES, Organization, slugify_org_name
 from organizations.services import validate_org_parent
-from people.models import Person
+from people.models import PERSON_LIST_ORDER, Person, filter_people_search
 from wordpress.serializers import assignment_to_wire, organization_to_wire
 
 router = Router(tags=["organizations"])
@@ -63,7 +62,6 @@ def _org_list_item(o: Organization) -> dict:
         "name": o.name,
         "org_type": o.org_type,
         "parent_id": str(o.parent_id) if o.parent_id else None,
-        "department_id": o.department_id,
         "public_email": o.public_email,
         "phone": o.phone,
         "slug": o.slug,
@@ -190,12 +188,7 @@ def patch_org(request, org_id: UUID, payload: OrgPatch):
 
 
 def _person_search(qs, q: str | None):
-    if not q:
-        return qs
-    s = q.lower()
-    return qs.filter(
-        Q(full_name__icontains=s) | Q(email_public__icontains=s) | Q(name_last__icontains=s)
-    )
+    return filter_people_search(qs, q)
 
 
 @router.get("/orgs/{org_id}/people")
@@ -207,15 +200,11 @@ def list_people_for_org(request, org_id: UUID, q: str | None = None, limit: int 
         org_id=org_id, tenant_id=tenant_id, person__archived_at__isnull=True, person__isnull=False
     ).select_related("person")
     if q:
-        s = q.lower()
-        assigns = assigns.filter(
-            Q(person__full_name__icontains=s)
-            | Q(person__email_public__icontains=s)
-            | Q(person__name_last__icontains=s)
-        )
+        matching_ids = filter_people_search(Person.objects.filter(tenant_id=tenant_id), q).values("id")
+        assigns = assigns.filter(person_id__in=matching_ids)
     total = assigns.count()
     items = []
-    for a in assigns.order_by("person__full_name", "person__name_last", "person__id")[offset : offset + limit]:
+    for a in assigns.order_by("person__name_last", "person__name_first", "person__id")[offset : offset + limit]:
         row = {
             "id": str(a.person.id),
             "full_name": a.person.full_name,
@@ -224,7 +213,6 @@ def list_people_for_org(request, org_id: UUID, q: str | None = None, limit: int 
             "email_public": a.person.email_public,
             "phone_public": a.person.phone_public,
             "phone_public_ext": a.person.phone_public_ext,
-            "job_title": a.person.job_title,
             "show_in_directory": a.person.show_in_directory,
             "updated_at": jsonable(a.person.updated_at),
             "assignment_id": str(a.id),
@@ -247,7 +235,7 @@ def list_people_without_assignment_in_org(
     qs = _person_search(qs, q)
     total = qs.count()
     items = []
-    for p in qs.order_by("full_name", "name_last", "id")[offset : offset + limit]:
+    for p in qs.order_by(*PERSON_LIST_ORDER)[offset : offset + limit]:
         items.append(
             {
                 "id": str(p.id),
@@ -257,7 +245,6 @@ def list_people_without_assignment_in_org(
                 "email_public": p.email_public,
                 "phone_public": p.phone_public,
                 "phone_public_ext": p.phone_public_ext,
-                "job_title": p.job_title,
                 "show_in_directory": p.show_in_directory,
                 "updated_at": jsonable(p.updated_at),
             }

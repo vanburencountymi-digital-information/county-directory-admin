@@ -79,7 +79,6 @@ export type Org = {
   id: string;
   name: string;
   org_type: string;
-  department_id: string | null;
   parent_id?: string | null;
 };
 
@@ -104,7 +103,6 @@ export type PersonRow = {
   email_public: string | null;
   phone_public: string | null;
   phone_public_ext: string | null;
-  job_title: string | null;
   assignment_job_title: string | null;
   /** Org + title labels when listing all people (not org-scoped). */
   assignment_summary?: string | null;

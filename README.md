@@ -59,7 +59,9 @@ npm test
 | Clerk APIs (`/api/wordpress/*`) | Django session + `directory_editor` |
 | Outbound `force-sync-person` / incremental / reconciliation | header `X-County-Directory-Admin-Secret: <WP_SYNC_TRIGGER_SECRET>` |
 
-Those two secrets are **different**. Person JSON uses `core.people` column names 1:1 (booleans, `full_name`, `tenant_id`). Force-sync runs only on archive, `show_in_directory` toggle, and the manual push button — explicit `wordpress.services` calls, not Django signals.
+Those two secrets are **different**. Person JSON still uses the historical county-core field names (`full_name`, `tenant_id`, booleans). `full_name` on the wire is the resolved display name. Dropped person columns (`job_title`, `person_key`, `role`) are sent as `null` so PHP mappings stay valid. Force-sync runs only on archive, `show_in_directory` toggle, and the manual push button — explicit `wordpress.services` calls, not Django signals.
+
+See [docs/ETL.md](docs/ETL.md) for the first-load column map from `core.*`.
 
 Tenant IDs in production are `VBC` and `SJC`.
 

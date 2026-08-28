@@ -73,6 +73,8 @@ def test_get_person_detail_and_unassigned(as_editor):
     detail = as_editor.get(f"/api/people/{p.id}")
     assert detail.status_code == 200
     assert detail.json()["id"] == str(p.id)
+    assert "display_name" in detail.json()
+    assert detail.json()["full_name"] == p.full_name
     una = as_editor.get(f"/api/orgs/{org.id}/people/unassigned")
     assert una.status_code == 200
     assert any(i["id"] == str(p.id) for i in una.json()["items"])

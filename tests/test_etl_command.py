@@ -138,7 +138,7 @@ def test_import_from_db_dice_preserves_uuids_and_caps(monkeypatch):
                     None,
                     "Lovelace",
                     None,
-                    "Ada Lovelace",
+                    "Ada L.",
                     "ada-etl@example.test",
                     None,
                     None,
@@ -178,6 +178,8 @@ def test_import_from_db_dice_preserves_uuids_and_caps(monkeypatch):
     person = Person.objects.get(id=person_id)
     assert person.email_public == "ada-etl@example.test"
     assert person.show_in_directory is True
+    assert person.display_name == "Ada L."
+    assert person.full_name == "Ada L."
     assert Assignment.objects.get(id=asg_id).org_id == org_id
     assert person.user.groups.filter(name="directory_editor").exists()
     assert person.user.tenant_memberships.filter(tenant_id="VBC").exists()

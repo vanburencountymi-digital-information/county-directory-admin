@@ -1,14 +1,14 @@
 from uuid import UUID
 
-from django.db.models import Count, Q
+from django.db.models import Count
 from ninja import Router, Schema
 from ninja.errors import HttpError
 
 from accounts.authz import actor_label, require_directory_editor
 from assignments.models import Assignment
 from audit.services import insert_audit, jsonable
-from people.models import Person, derive_full_name
-from wordpress.serializers import person_to_wire
+from people.models import PERSON_LIST_ORDER, Person, filter_people_search
+from wordpress.serializers import person_to_admin
 from wordpress.services import try_push_person_to_wordpress
 
 router = Router(tags=["people"])
@@ -18,14 +18,12 @@ PEOPLE_PATCHABLE = {
     "name_middle",
     "name_last",
     "name_suffix",
-    "full_name",
+    "display_name",
     "email_public",
     "phone_public",
     "phone_public_ext",
-    "job_title",
     "show_in_directory",
     "employee_id",
-    "person_key",
 }
 
 
@@ -41,26 +39,17 @@ def format_public_phone(phone, ext):
     return None
 
 
-def _search_q(qs, q: str | None):
-    if not q:
-        return qs
-    s = q.lower()
-    return qs.filter(
-        Q(full_name__icontains=s) | Q(email_public__icontains=s) | Q(name_last__icontains=s)
-    )
-
-
 class PersonCreate(Schema):
     name_first: str | None = None
+    name_middle: str | None = None
     name_last: str | None = None
-    full_name: str | None = None
+    name_suffix: str | None = None
+    display_name: str | None = None
     email_public: str | None = None
     phone_public: str | None = None
     phone_public_ext: str | None = None
-    job_title: str | None = None
     show_in_directory: bool = False
     employee_id: str | None = None
-    person_key: str | None = None
 
 
 class PersonPatch(Schema):
@@ -68,26 +57,24 @@ class PersonPatch(Schema):
     name_middle: str | None = None
     name_last: str | None = None
     name_suffix: str | None = None
-    full_name: str | None = None
+    display_name: str | None = None
     email_public: str | None = None
     phone_public: str | None = None
     phone_public_ext: str | None = None
-    job_title: str | None = None
     show_in_directory: bool | None = None
     employee_id: str | None = None
-    person_key: str | None = None
 
 
 def _person_list_item(p: Person, assignment=None) -> dict:
     data = {
         "id": str(p.id),
         "full_name": p.full_name,
+        "display_name": p.display_name,
         "name_first": p.name_first,
         "name_last": p.name_last,
         "email_public": p.email_public,
         "phone_public": p.phone_public,
         "phone_public_ext": p.phone_public_ext,
-        "job_title": p.job_title,
         "show_in_directory": p.show_in_directory,
         "updated_at": jsonable(p.updated_at),
     }
@@ -108,11 +95,11 @@ def list_all_people(
 ):
     tenant_id = require_directory_editor(request)
     qs = Person.objects.filter(tenant_id=tenant_id, archived_at__isnull=True)
-    qs = _search_q(qs, q)
+    qs = filter_people_search(qs, q)
     if unassigned:
         qs = qs.filter(assignments__isnull=True).distinct()
     total = qs.count()
-    qs = qs.annotate(assignment_count=Count("assignments")).order_by("full_name", "name_last", "id")
+    qs = qs.annotate(assignment_count=Count("assignments")).order_by(*PERSON_LIST_ORDER)
     items = []
     for p in qs[offset : offset + limit]:
         row = _person_list_item(p)
@@ -141,7 +128,7 @@ def get_person(request, person_id: UUID):
         person = Person.objects.get(id=person_id, tenant_id=tenant_id, archived_at__isnull=True)
     except Person.DoesNotExist:
         raise HttpError(404, "Person not found") from None
-    data = person_to_wire(person)
+    data = person_to_admin(person)
     assigns = (
         Assignment.objects.filter(person=person, tenant_id=tenant_id)
         .select_related("org")
@@ -168,18 +155,18 @@ def create_person(request, payload: PersonCreate):
     person = Person(
         tenant_id=tenant_id,
         name_first=payload.name_first,
+        name_middle=payload.name_middle,
         name_last=payload.name_last,
-        full_name=derive_full_name(payload.name_first, payload.name_last, payload.full_name),
+        name_suffix=payload.name_suffix,
+        display_name=payload.display_name,
         email_public=payload.email_public,
         phone_public=payload.phone_public,
         phone_public_ext=payload.phone_public_ext,
-        job_title=payload.job_title,
         show_in_directory=payload.show_in_directory,
         employee_id=payload.employee_id,
-        person_key=payload.person_key,
     )
     person.save()
-    after = person_to_wire(person)
+    after = person_to_admin(person)
     insert_audit(
         tenant_id=tenant_id,
         actor=actor,
@@ -206,15 +193,11 @@ def patch_person(request, person_id: UUID, payload: PersonPatch):
         person = Person.objects.get(id=person_id, tenant_id=tenant_id, archived_at__isnull=True)
     except Person.DoesNotExist:
         raise HttpError(404, "Person not found") from None
-    before = person_to_wire(person)
+    before = person_to_admin(person)
     for key, val in updates.items():
         setattr(person, key, val)
-    if "full_name" in updates:
-        person.full_name = derive_full_name(person.name_first, person.name_last, person.full_name)
-    elif any(k in updates for k in ("name_first", "name_last", "name_middle", "name_suffix")):
-        person.full_name = derive_full_name(person.name_first, person.name_last)
     person.save()
-    after = person_to_wire(person)
+    after = person_to_admin(person)
     log = insert_audit(
         tenant_id=tenant_id,
         actor=actor,
@@ -242,13 +225,13 @@ def archive_person(request, person_id: UUID):
         person = Person.objects.get(id=person_id, tenant_id=tenant_id, archived_at__isnull=True)
     except Person.DoesNotExist:
         raise HttpError(404, "Person not found") from None
-    before = person_to_wire(person)
+    before = person_to_admin(person)
     Assignment.objects.filter(person=person, tenant_id=tenant_id).update(person=None)
     from django.utils import timezone as tz
 
     person.archived_at = tz.now()
     person.save()
-    after = person_to_wire(person)
+    after = person_to_admin(person)
     insert_audit(
         tenant_id=tenant_id,
         actor=actor,
@@ -288,11 +271,9 @@ def get_print_directory(request):
                 "entries": [],
             }
         p = a.person
-        joined = " ".join([x.strip() for x in [p.name_first, p.name_last] if x and x.strip()])
-        display = joined or (p.full_name or "").strip() or "Unknown"
         grouped[department]["entries"].append(
             {
-                "name": display,
+                "name": (p.full_name or "").strip() or "Unknown",
                 "title": a.job_title,
                 "phone": format_public_phone(p.phone_public, p.phone_public_ext),
                 "email": p.email_public,

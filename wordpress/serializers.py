@@ -1,8 +1,6 @@
 from datetime import date, datetime
 from uuid import UUID
 
-from django.utils import timezone
-
 PERSON_WIRE_FIELDS = (
     "id",
     "tenant_id",
@@ -24,6 +22,9 @@ PERSON_WIRE_FIELDS = (
     "updated_at",
 )
 
+# Dropped from Django; still present on the WP wire as null so county-core mappings stay valid.
+PERSON_DROPPED_WIRE_FIELDS = frozenset({"job_title", "person_key", "role"})
+
 ORG_WIRE_FIELDS = (
     "id",
     "tenant_id",
@@ -37,8 +38,6 @@ ORG_WIRE_FIELDS = (
     "archived_at",
     "created_at",
     "updated_at",
-    "department_id",
-    "parent_department_id",
     "address_mailing",
     "address_physical",
     "additional_information",
@@ -61,7 +60,21 @@ def jsonable(v):
 
 
 def person_to_wire(person) -> dict:
-    return {field: jsonable(getattr(person, field)) for field in PERSON_WIRE_FIELDS}
+    data = {}
+    for field in PERSON_WIRE_FIELDS:
+        if field in PERSON_DROPPED_WIRE_FIELDS:
+            data[field] = None
+        else:
+            data[field] = jsonable(getattr(person, field))
+    return data
+
+
+def person_to_admin(person) -> dict:
+    data = person_to_wire(person)
+    for field in PERSON_DROPPED_WIRE_FIELDS:
+        data.pop(field, None)
+    data["display_name"] = person.display_name
+    return data
 
 
 def organization_to_wire(org) -> dict:

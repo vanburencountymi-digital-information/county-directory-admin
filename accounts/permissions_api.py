@@ -9,7 +9,7 @@ from accounts.authz import actor_label, require_permissions_admin
 from accounts.models import TenantMembership, User
 from accounts.services import grant_directory_group, upgrade_person_to_user
 from audit.services import insert_audit
-from people.models import Person
+from people.models import PERSON_LIST_ORDER, Person, filter_people_search
 
 router = Router(tags=["permissions"])
 
@@ -45,13 +45,13 @@ def list_caps(request):
 @router.get("/people")
 def search_people(request, q: str, limit: int = 25):
     tenant_id = require_permissions_admin(request)
-    s = q.lower()
-    rows = Person.objects.filter(
-        tenant_id=tenant_id,
-        archived_at__isnull=True,
-    ).filter(
-        models_q(s)
-    ).order_by("full_name", "name_last", "id")[:limit]
+    rows = filter_people_search(
+        Person.objects.filter(
+            tenant_id=tenant_id,
+            archived_at__isnull=True,
+        ),
+        q,
+    ).order_by(*PERSON_LIST_ORDER)[:limit]
     return {
         "items": [
             {
@@ -64,12 +64,6 @@ def search_people(request, q: str, limit: int = 25):
             for p in rows
         ]
     }
-
-
-def models_q(s: str):
-    from django.db.models import Q
-
-    return Q(full_name__icontains=s) | Q(email_public__icontains=s) | Q(name_last__icontains=s)
 
 
 @router.get("/people/{person_id}/caps")

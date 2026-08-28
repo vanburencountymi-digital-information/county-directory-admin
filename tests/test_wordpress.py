@@ -27,6 +27,10 @@ def test_person_wire_booleans_and_tenant(person):
     assert isinstance(wire["show_in_directory"], bool)
     assert wire["tenant_id"] == "VBC"
     assert wire["full_name"] == "Ada Lovelace"
+    assert wire["job_title"] is None
+    assert wire["person_key"] is None
+    assert wire["role"] is None
+    assert "display_name" not in wire
     assert set(wire.keys()) >= {
         "id",
         "tenant_id",

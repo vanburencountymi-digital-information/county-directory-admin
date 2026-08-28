@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, watch } from "vue";
+import { computed, ref, watch } from "vue";
 import { apiDelete, apiGet, apiPatch, apiPost, type OpenAssignment } from "../api";
 
 type Assignment = {
@@ -13,6 +13,7 @@ type Assignment = {
 type PersonDetail = {
   id: string;
   full_name: string | null;
+  display_name: string | null;
   name_first: string | null;
   name_middle: string | null;
   name_last: string | null;
@@ -22,7 +23,6 @@ type PersonDetail = {
   phone_public_ext: string | null;
   show_in_directory: boolean;
   employee_id: string | null;
-  person_key: string | null;
   assignments: Assignment[];
 };
 
@@ -62,7 +62,7 @@ function loadPerson() {
     .then((p) => {
       data.value = p;
       form.value = {
-        full_name: p.full_name,
+        display_name: p.display_name,
         name_first: p.name_first,
         name_middle: p.name_middle,
         name_last: p.name_last,
@@ -72,7 +72,6 @@ function loadPerson() {
         phone_public_ext: p.phone_public_ext,
         show_in_directory: p.show_in_directory,
         employee_id: p.employee_id,
-        person_key: p.person_key,
       };
     })
     .catch((e) => {
@@ -82,6 +81,13 @@ function loadPerson() {
 
 watch(() => props.personId, loadPerson, { immediate: true });
 
+const composedName = computed(() =>
+  [form.value.name_first, form.value.name_middle, form.value.name_last, form.value.name_suffix]
+    .map((p) => (p ?? "").trim())
+    .filter(Boolean)
+    .join(" "),
+);
+
 async function save() {
   if (!data.value) return;
   saving.value = true;
@@ -90,7 +96,7 @@ async function save() {
   try {
     const body: Record<string, unknown> = {};
     const keys: (keyof PersonDetail)[] = [
-      "full_name",
+      "display_name",
       "name_first",
       "name_middle",
       "name_last",
@@ -100,7 +106,6 @@ async function save() {
       "phone_public_ext",
       "show_in_directory",
       "employee_id",
-      "person_key",
     ];
     for (const k of keys) {
       if (form.value[k] !== data.value[k]) body[k] = form.value[k];
@@ -247,11 +252,7 @@ function onBackdropClick() {
         <p v-if="err" class="error-msg">{{ err }}</p>
         <p v-if="msg" class="success-msg">{{ msg }}</p>
         <template v-if="data">
-          <div class="form-grid">
-            <label>
-              Full name
-              <input class="field-input" :value="form.full_name ?? ''" @input="form.full_name = ($event.target as HTMLInputElement).value || null" />
-            </label>
+          <div class="form-grid form-grid--twocol">
             <label>
               First
               <input class="field-input" :value="form.name_first ?? ''" @input="form.name_first = ($event.target as HTMLInputElement).value || null" />
@@ -267,6 +268,15 @@ function onBackdropClick() {
             <label>
               Suffix
               <input class="field-input" :value="form.name_suffix ?? ''" @input="form.name_suffix = ($event.target as HTMLInputElement).value || null" />
+            </label>
+            <label class="span-2">
+              Display name
+              <input
+                class="field-input"
+                :placeholder="composedName || 'Uses first + middle + last + suffix when blank'"
+                :value="form.display_name ?? ''"
+                @input="form.display_name = ($event.target as HTMLInputElement).value || null"
+              />
             </label>
             <label>
               Email (public)
@@ -287,10 +297,6 @@ function onBackdropClick() {
             <label>
               Employee ID
               <input class="field-input" :value="form.employee_id ?? ''" @input="form.employee_id = ($event.target as HTMLInputElement).value || null" />
-            </label>
-            <label>
-              Person key
-              <input class="field-input" :value="form.person_key ?? ''" @input="form.person_key = ($event.target as HTMLInputElement).value || null" />
             </label>
           </div>
 

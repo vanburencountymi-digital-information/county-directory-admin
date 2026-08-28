@@ -224,9 +224,7 @@ const tabOrgs = computed(() => {
 const filteredOrgs = computed(() => {
   const s = orgFilter.value.toLowerCase();
   if (!s) return tabOrgs.value;
-  return tabOrgs.value.filter(
-    (o) => (o.name && o.name.toLowerCase().includes(s)) || (o.department_id && o.department_id.toLowerCase().includes(s)),
-  );
+  return tabOrgs.value.filter((o) => o.name && o.name.toLowerCase().includes(s));
 });
 
 async function loadPeople() {
